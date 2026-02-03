@@ -1,97 +1,796 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>스톱워치 & 타이머</title>
+    <title>FM Synthesizer</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>⏱️ 타임 트래커</h1>
-            <button class="theme-toggle" id="themeToggle" aria-label="테마 전환">
-                <span class="theme-icon">🌙</span>
-            </button>
-        </header>
-
-        <nav class="tab-nav">
-            <button class="tab-btn active" data-tab="stopwatch">스톱워치</button>
-            <button class="tab-btn" data-tab="timer">타이머</button>
-            <button class="tab-btn" data-tab="records">기록</button>
-        </nav>
-
-        <main>
-            <!-- 스톱워치 섹션 -->
-            <section class="tab-content active" id="stopwatch">
-                <div class="time-display">
-                    <span class="time" id="stopwatchTime">00:00:00.00</span>
-                </div>
-
-                <div class="controls">
-                    <button class="btn btn-start" id="swStart">시작</button>
-                    <button class="btn btn-lap" id="swLap" disabled>랩</button>
-                    <button class="btn btn-reset" id="swReset">리셋</button>
-                </div>
-
-                <div class="lap-times">
-                    <h3>랩타임</h3>
-                    <div class="lap-list" id="lapList">
-                        <p class="empty-message">랩타임이 없습니다</p>
+    <!-- Header -->
+    <header class="synth-header">
+        <h1 class="synth-title">FM SYNTHESIZER</h1>
+        <div class="master-controls">
+            <div class="master-volume-wrapper">
+                <span class="master-volume-label">MASTER</span>
+                <div class="knob-wrapper">
+                    <div class="knob master-volume-knob"
+                         data-target="master"
+                         data-param="volume"
+                         data-value="0.7"
+                         data-default="0.7">
+                        <div class="knob-indicator"></div>
                     </div>
                 </div>
-            </section>
+            </div>
+        </div>
+    </header>
 
-            <!-- 타이머 섹션 -->
-            <section class="tab-content" id="timer">
-                <div class="timer-setup" id="timerSetup">
-                    <div class="time-inputs">
-                        <div class="input-group">
-                            <input type="number" id="timerHours" min="0" max="99" value="0" placeholder="00">
-                            <span class="input-label">시</span>
+    <!-- Main Container -->
+    <div class="synth-container">
+        <!-- Modulation Matrix -->
+        <section class="modulation-matrix-section">
+            <h2 class="section-title">Modulation Matrix</h2>
+            <div class="modulation-matrix">
+                <div></div>
+                <div class="matrix-header">OP1</div>
+                <div class="matrix-header">OP2</div>
+                <div class="matrix-header">OP3</div>
+                <div class="matrix-header">OP4</div>
+                <div class="matrix-header">OUT</div>
+
+                <!-- Row 1 -->
+                <div class="matrix-row-label">OP1</div>
+                <div class="matrix-cell" data-row="0" data-col="0"></div>
+                <div class="matrix-cell active" data-row="0" data-col="1"></div>
+                <div class="matrix-cell" data-row="0" data-col="2"></div>
+                <div class="matrix-cell active" data-row="0" data-col="3"></div>
+                <div class="matrix-master-switch" data-index="0"></div>
+
+                <!-- Row 2 -->
+                <div class="matrix-row-label">OP2</div>
+                <div class="matrix-cell active" data-row="1" data-col="0"></div>
+                <div class="matrix-cell" data-row="1" data-col="1"></div>
+                <div class="matrix-cell" data-row="1" data-col="2"></div>
+                <div class="matrix-cell" data-row="1" data-col="3"></div>
+                <div class="matrix-master-switch active" data-index="1"></div>
+
+                <!-- Row 3 -->
+                <div class="matrix-row-label">OP3</div>
+                <div class="matrix-cell" data-row="2" data-col="0"></div>
+                <div class="matrix-cell" data-row="2" data-col="1"></div>
+                <div class="matrix-cell" data-row="2" data-col="2"></div>
+                <div class="matrix-cell active" data-row="2" data-col="3"></div>
+                <div class="matrix-master-switch" data-index="2"></div>
+
+                <!-- Row 4 -->
+                <div class="matrix-row-label">OP4</div>
+                <div class="matrix-cell" data-row="3" data-col="0"></div>
+                <div class="matrix-cell active" data-row="3" data-col="1"></div>
+                <div class="matrix-cell active" data-row="3" data-col="2"></div>
+                <div class="matrix-cell" data-row="3" data-col="3"></div>
+                <div class="matrix-master-switch active" data-index="3"></div>
+            </div>
+        </section>
+
+        <!-- Operators -->
+        <section class="operators-section">
+            <!-- Operator 1 -->
+            <div class="operator-module">
+                <div class="operator-header">
+                    <span class="operator-title">OPERATOR 1</span>
+                    <div class="operator-led" data-op="0"></div>
+                </div>
+                <div class="operator-controls">
+                    <!-- Waveform -->
+                    <div class="control-row">
+                        <span class="control-label">Waveform</span>
+                        <select class="waveform-select" data-target="operator" data-index="0">
+                            <option value="sine" selected>Sine</option>
+                            <option value="cosine">Cosine</option>
+                            <option value="square">Square</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="triangle">Triangle</option>
+                        </select>
+                    </div>
+                    <!-- Frequency Ratio -->
+                    <div class="control-row">
+                        <span class="control-label">Frequency Ratio</span>
+                        <div class="knob-wrapper">
+                            <div class="knob" data-target="operator" data-index="0" data-param="ratio"
+                                 data-type="ratio" data-value="0.0625" data-sensitivity="0.002">
+                                <div class="knob-indicator"></div>
+                                <div class="knob-pointer"></div>
+                            </div>
+                            <span class="knob-value">1.00</span>
                         </div>
-                        <span class="separator">:</span>
-                        <div class="input-group">
-                            <input type="number" id="timerMinutes" min="0" max="59" value="5" placeholder="00">
-                            <span class="input-label">분</span>
+                    </div>
+                    <!-- Level -->
+                    <div class="control-row">
+                        <span class="control-label">Output Level</span>
+                        <div class="knob-wrapper">
+                            <div class="knob" data-target="operator" data-index="0" data-param="level"
+                                 data-type="percent" data-value="0" data-sensitivity="0.005">
+                                <div class="knob-indicator"></div>
+                                <div class="knob-pointer"></div>
+                            </div>
+                            <span class="knob-value">0%</span>
                         </div>
-                        <span class="separator">:</span>
-                        <div class="input-group">
-                            <input type="number" id="timerSeconds" min="0" max="59" value="0" placeholder="00">
-                            <span class="input-label">초</span>
+                    </div>
+                    <!-- Modulation Index -->
+                    <div class="control-row">
+                        <span class="control-label">Modulation Index</span>
+                        <div class="knob-wrapper">
+                            <div class="knob" data-target="operator" data-index="0" data-param="mod-index"
+                                 data-type="mod-index" data-value="0.5" data-sensitivity="0.005">
+                                <div class="knob-indicator"></div>
+                                <div class="knob-pointer"></div>
+                            </div>
+                            <span class="knob-value">50</span>
+                        </div>
+                    </div>
+                    <!-- Phase Invert -->
+                    <div class="control-row">
+                        <div class="switch-wrapper">
+                            <span class="switch-label">Phase Invert</span>
+                            <div class="switch" data-target="operator" data-index="0" data-param="phase-invert"></div>
+                        </div>
+                    </div>
+                    <!-- Envelope Assign -->
+                    <div class="control-row">
+                        <span class="control-label">Envelope</span>
+                        <select class="waveform-select envelope-select" data-index="0">
+                            <option value="0" selected>ADSR 1</option>
+                            <option value="1">ADSR 2</option>
+                            <option value="2">ADSR 3</option>
+                            <option value="3">ADSR 4</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Operator 2 -->
+            <div class="operator-module">
+                <div class="operator-header">
+                    <span class="operator-title">OPERATOR 2</span>
+                    <div class="operator-led" data-op="1"></div>
+                </div>
+                <div class="operator-controls">
+                    <div class="control-row">
+                        <span class="control-label">Waveform</span>
+                        <select class="waveform-select" data-target="operator" data-index="1">
+                            <option value="sine" selected>Sine</option>
+                            <option value="cosine">Cosine</option>
+                            <option value="square">Square</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="triangle">Triangle</option>
+                        </select>
+                    </div>
+                    <div class="control-row">
+                        <span class="control-label">Frequency Ratio</span>
+                        <div class="knob-wrapper">
+                            <div class="knob" data-target="operator" data-index="1" data-param="ratio"
+                                 data-type="ratio" data-value="0.125" data-sensitivity="0.002">
+                                <div class="knob-indicator"></div>
+                                <div class="knob-pointer"></div>
+                            </div>
+                            <span class="knob-value">2.00</span>
+                        </div>
+                    </div>
+                    <div class="control-row">
+                        <span class="control-label">Output Level</span>
+                        <div class="knob-wrapper">
+                            <div class="knob" data-target="operator" data-index="1" data-param="level"
+                                 data-type="percent" data-value="0" data-sensitivity="0.005">
+                                <div class="knob-indicator"></div>
+                                <div class="knob-pointer"></div>
+                            </div>
+                            <span class="knob-value">0%</span>
+                        </div>
+                    </div>
+                    <div class="control-row">
+                        <span class="control-label">Modulation Index</span>
+                        <div class="knob-wrapper">
+                            <div class="knob" data-target="operator" data-index="1" data-param="mod-index"
+                                 data-type="mod-index" data-value="0.3" data-sensitivity="0.005">
+                                <div class="knob-indicator"></div>
+                                <div class="knob-pointer"></div>
+                            </div>
+                            <span class="knob-value">30</span>
+                        </div>
+                    </div>
+                    <div class="control-row">
+                        <div class="switch-wrapper">
+                            <span class="switch-label">Phase Invert</span>
+                            <div class="switch" data-target="operator" data-index="1" data-param="phase-invert"></div>
+                        </div>
+                    </div>
+                    <div class="control-row">
+                        <span class="control-label">Envelope</span>
+                        <select class="waveform-select envelope-select" data-index="1">
+                            <option value="0">ADSR 1</option>
+                            <option value="1" selected>ADSR 2</option>
+                            <option value="2">ADSR 3</option>
+                            <option value="3">ADSR 4</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Operator 3 -->
+            <div class="operator-module">
+                <div class="operator-header">
+                    <span class="operator-title">OPERATOR 3</span>
+                    <div class="operator-led" data-op="2"></div>
+                </div>
+                <div class="operator-controls">
+                    <div class="control-row">
+                        <span class="control-label">Waveform</span>
+                        <select class="waveform-select" data-target="operator" data-index="2">
+                            <option value="sine" selected>Sine</option>
+                            <option value="cosine">Cosine</option>
+                            <option value="square">Square</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="triangle">Triangle</option>
+                        </select>
+                    </div>
+                    <div class="control-row">
+                        <span class="control-label">Frequency Ratio</span>
+                        <div class="knob-wrapper">
+                            <div class="knob" data-target="operator" data-index="2" data-param="ratio"
+                                 data-type="ratio" data-value="0.1875" data-sensitivity="0.002">
+                                <div class="knob-indicator"></div>
+                                <div class="knob-pointer"></div>
+                            </div>
+                            <span class="knob-value">3.00</span>
+                        </div>
+                    </div>
+                    <div class="control-row">
+                        <span class="control-label">Output Level</span>
+                        <div class="knob-wrapper">
+                            <div class="knob" data-target="operator" data-index="2" data-param="level"
+                                 data-type="percent" data-value="0" data-sensitivity="0.005">
+                                <div class="knob-indicator"></div>
+                                <div class="knob-pointer"></div>
+                            </div>
+                            <span class="knob-value">0%</span>
+                        </div>
+                    </div>
+                    <div class="control-row">
+                        <span class="control-label">Modulation Index</span>
+                        <div class="knob-wrapper">
+                            <div class="knob" data-target="operator" data-index="2" data-param="mod-index"
+                                 data-type="mod-index" data-value="0.2" data-sensitivity="0.005">
+                                <div class="knob-indicator"></div>
+                                <div class="knob-pointer"></div>
+                            </div>
+                            <span class="knob-value">20</span>
+                        </div>
+                    </div>
+                    <div class="control-row">
+                        <div class="switch-wrapper">
+                            <span class="switch-label">Phase Invert</span>
+                            <div class="switch" data-target="operator" data-index="2" data-param="phase-invert"></div>
+                        </div>
+                    </div>
+                    <div class="control-row">
+                        <span class="control-label">Envelope</span>
+                        <select class="waveform-select envelope-select" data-index="2">
+                            <option value="0">ADSR 1</option>
+                            <option value="1">ADSR 2</option>
+                            <option value="2" selected>ADSR 3</option>
+                            <option value="3">ADSR 4</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Operator 4 -->
+            <div class="operator-module">
+                <div class="operator-header">
+                    <span class="operator-title">OPERATOR 4</span>
+                    <div class="operator-led active" data-op="3"></div>
+                </div>
+                <div class="operator-controls">
+                    <div class="control-row">
+                        <span class="control-label">Waveform</span>
+                        <select class="waveform-select" data-target="operator" data-index="3">
+                            <option value="sine" selected>Sine</option>
+                            <option value="cosine">Cosine</option>
+                            <option value="square">Square</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="triangle">Triangle</option>
+                        </select>
+                    </div>
+                    <div class="control-row">
+                        <span class="control-label">Frequency Ratio</span>
+                        <div class="knob-wrapper">
+                            <div class="knob" data-target="operator" data-index="3" data-param="ratio"
+                                 data-type="ratio" data-value="0.25" data-sensitivity="0.002">
+                                <div class="knob-indicator"></div>
+                                <div class="knob-pointer"></div>
+                            </div>
+                            <span class="knob-value">4.00</span>
+                        </div>
+                    </div>
+                    <div class="control-row">
+                        <span class="control-label">Output Level</span>
+                        <div class="knob-wrapper">
+                            <div class="knob" data-target="operator" data-index="3" data-param="level"
+                                 data-type="percent" data-value="0.7" data-sensitivity="0.005">
+                                <div class="knob-indicator"></div>
+                                <div class="knob-pointer"></div>
+                            </div>
+                            <span class="knob-value">70%</span>
+                        </div>
+                    </div>
+                    <div class="control-row">
+                        <span class="control-label">Modulation Index</span>
+                        <div class="knob-wrapper">
+                            <div class="knob" data-target="operator" data-index="3" data-param="mod-index"
+                                 data-type="mod-index" data-value="0" data-sensitivity="0.005">
+                                <div class="knob-indicator"></div>
+                                <div class="knob-pointer"></div>
+                            </div>
+                            <span class="knob-value">0</span>
+                        </div>
+                    </div>
+                    <div class="control-row">
+                        <div class="switch-wrapper">
+                            <span class="switch-label">Phase Invert</span>
+                            <div class="switch" data-target="operator" data-index="3" data-param="phase-invert"></div>
+                        </div>
+                    </div>
+                    <div class="control-row">
+                        <span class="control-label">Envelope</span>
+                        <select class="waveform-select envelope-select" data-index="3">
+                            <option value="0">ADSR 1</option>
+                            <option value="1">ADSR 2</option>
+                            <option value="2">ADSR 3</option>
+                            <option value="3" selected>ADSR 4</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ADSR Envelopes -->
+        <section class="adsr-section">
+            <h2 class="section-title">ADSR Envelopes</h2>
+            <div class="adsr-modules">
+                <!-- ADSR 1 -->
+                <div class="adsr-module">
+                    <h3 class="adsr-title">ENVELOPE 1</h3>
+                    <div class="adsr-controls">
+                        <div class="adsr-control">
+                            <span class="adsr-label">Attack</span>
+                            <div class="fader-wrapper">
+                                <div class="fader-track">
+                                    <div class="fader-fill" style="height: 1%"></div>
+                                    <div class="fader-thumb" style="bottom: 1%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="adsr-control">
+                            <span class="adsr-label">Decay</span>
+                            <div class="fader-wrapper">
+                                <div class="fader-track">
+                                    <div class="fader-fill" style="height: 3%"></div>
+                                    <div class="fader-thumb" style="bottom: 3%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="adsr-control">
+                            <span class="adsr-label">Sustain</span>
+                            <div class="fader-wrapper">
+                                <div class="fader-track">
+                                    <div class="fader-fill" style="height: 50%"></div>
+                                    <div class="fader-thumb" style="bottom: 50%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="adsr-control">
+                            <span class="adsr-label">Release</span>
+                            <div class="fader-wrapper">
+                                <div class="fader-track">
+                                    <div class="fader-fill" style="height: 3%"></div>
+                                    <div class="fader-thumb" style="bottom: 3%"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="time-display timer-display" id="timerDisplay">
-                    <span class="time" id="timerTime">00:05:00</span>
+                <!-- ADSR 2 -->
+                <div class="adsr-module">
+                    <h3 class="adsr-title">ENVELOPE 2</h3>
+                    <div class="adsr-controls">
+                        <div class="adsr-control">
+                            <span class="adsr-label">Attack</span>
+                            <div class="fader-wrapper">
+                                <div class="fader-track">
+                                    <div class="fader-fill" style="height: 1%"></div>
+                                    <div class="fader-thumb" style="bottom: 1%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="adsr-control">
+                            <span class="adsr-label">Decay</span>
+                            <div class="fader-wrapper">
+                                <div class="fader-track">
+                                    <div class="fader-fill" style="height: 3%"></div>
+                                    <div class="fader-thumb" style="bottom: 3%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="adsr-control">
+                            <span class="adsr-label">Sustain</span>
+                            <div class="fader-wrapper">
+                                <div class="fader-track">
+                                    <div class="fader-fill" style="height: 50%"></div>
+                                    <div class="fader-thumb" style="bottom: 50%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="adsr-control">
+                            <span class="adsr-label">Release</span>
+                            <div class="fader-wrapper">
+                                <div class="fader-track">
+                                    <div class="fader-fill" style="height: 3%"></div>
+                                    <div class="fader-thumb" style="bottom: 3%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="controls">
-                    <button class="btn btn-start" id="tmStart">시작</button>
-                    <button class="btn btn-pause" id="tmPause" disabled>일시정지</button>
-                    <button class="btn btn-reset" id="tmReset">리셋</button>
+                <!-- ADSR 3 -->
+                <div class="adsr-module">
+                    <h3 class="adsr-title">ENVELOPE 3</h3>
+                    <div class="adsr-controls">
+                        <div class="adsr-control">
+                            <span class="adsr-label">Attack</span>
+                            <div class="fader-wrapper">
+                                <div class="fader-track">
+                                    <div class="fader-fill" style="height: 1%"></div>
+                                    <div class="fader-thumb" style="bottom: 1%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="adsr-control">
+                            <span class="adsr-label">Decay</span>
+                            <div class="fader-wrapper">
+                                <div class="fader-track">
+                                    <div class="fader-fill" style="height: 3%"></div>
+                                    <div class="fader-thumb" style="bottom: 3%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="adsr-control">
+                            <span class="adsr-label">Sustain</span>
+                            <div class="fader-wrapper">
+                                <div class="fader-track">
+                                    <div class="fader-fill" style="height: 50%"></div>
+                                    <div class="fader-thumb" style="bottom: 50%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="adsr-control">
+                            <span class="adsr-label">Release</span>
+                            <div class="fader-wrapper">
+                                <div class="fader-track">
+                                    <div class="fader-fill" style="height: 3%"></div>
+                                    <div class="fader-thumb" style="bottom: 3%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="timer-progress">
-                    <div class="progress-bar" id="progressBar"></div>
+                <!-- ADSR 4 -->
+                <div class="adsr-module">
+                    <h3 class="adsr-title">ENVELOPE 4</h3>
+                    <div class="adsr-controls">
+                        <div class="adsr-control">
+                            <span class="adsr-label">Attack</span>
+                            <div class="fader-wrapper">
+                                <div class="fader-track">
+                                    <div class="fader-fill" style="height: 1%"></div>
+                                    <div class="fader-thumb" style="bottom: 1%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="adsr-control">
+                            <span class="adsr-label">Decay</span>
+                            <div class="fader-wrapper">
+                                <div class="fader-track">
+                                    <div class="fader-fill" style="height: 3%"></div>
+                                    <div class="fader-thumb" style="bottom: 3%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="adsr-control">
+                            <span class="adsr-label">Sustain</span>
+                            <div class="fader-wrapper">
+                                <div class="fader-track">
+                                    <div class="fader-fill" style="height: 50%"></div>
+                                    <div class="fader-thumb" style="bottom: 50%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="adsr-control">
+                            <span class="adsr-label">Release</span>
+                            <div class="fader-wrapper">
+                                <div class="fader-track">
+                                    <div class="fader-fill" style="height: 3%"></div>
+                                    <div class="fader-thumb" style="bottom: 3%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </section>
+            </div>
+        </section>
 
-            <!-- 기록 섹션 -->
-            <section class="tab-content" id="records">
-                <div class="records-header">
-                    <h2>저장된 기록</h2>
-                    <button class="btn btn-clear" id="clearRecords">전체 삭제</button>
+        <!-- LFOs -->
+        <section class="lfo-section">
+            <!-- LFO 1 -->
+            <div class="lfo-module">
+                <div class="lfo-header">
+                    <span class="lfo-title">LFO 1</span>
+                    <div class="lfo-led"></div>
                 </div>
+                <div class="operator-controls">
+                    <div class="control-row">
+                        <span class="control-label">Waveform</span>
+                        <select class="waveform-select" data-target="lfo" data-index="0">
+                            <option value="sine" selected>Sine</option>
+                            <option value="square">Square</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="triangle">Triangle</option>
+                        </select>
+                    </div>
+                    <div class="control-row">
+                        <span class="control-label">Rate</span>
+                        <div class="knob-wrapper">
+                            <div class="knob" data-target="lfo" data-index="0" data-param="rate"
+                                 data-type="lfo-rate" data-value="0.25" data-sensitivity="0.005">
+                                <div class="knob-indicator"></div>
+                                <div class="knob-pointer"></div>
+                            </div>
+                            <span class="knob-value">5.0 Hz</span>
+                        </div>
+                    </div>
+                    <div class="control-row">
+                        <span class="control-label">Depth</span>
+                        <div class="knob-wrapper">
+                            <div class="knob" data-target="lfo" data-index="0" data-param="depth"
+                                 data-type="percent" data-value="0.2" data-sensitivity="0.005">
+                                <div class="knob-indicator"></div>
+                                <div class="knob-pointer"></div>
+                            </div>
+                            <span class="knob-value">20%</span>
+                        </div>
+                    </div>
+                    <div class="control-row">
+                        <div class="switch-wrapper">
+                            <span class="switch-label">Enable</span>
+                            <div class="switch" data-target="lfo" data-index="0" data-param="enable"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                <div class="records-list" id="recordsList">
-                    <p class="empty-message">저장된 기록이 없습니다</p>
+            <!-- LFO 2 -->
+            <div class="lfo-module">
+                <div class="lfo-header">
+                    <span class="lfo-title">LFO 2</span>
+                    <div class="lfo-led"></div>
                 </div>
-            </section>
-        </main>
+                <div class="operator-controls">
+                    <div class="control-row">
+                        <span class="control-label">Waveform</span>
+                        <select class="waveform-select" data-target="lfo" data-index="1">
+                            <option value="sine" selected>Sine</option>
+                            <option value="square">Square</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="triangle">Triangle</option>
+                        </select>
+                    </div>
+                    <div class="control-row">
+                        <span class="control-label">Rate</span>
+                        <div class="knob-wrapper">
+                            <div class="knob" data-target="lfo" data-index="1" data-param="rate"
+                                 data-type="lfo-rate" data-value="0.25" data-sensitivity="0.005">
+                                <div class="knob-indicator"></div>
+                                <div class="knob-pointer"></div>
+                            </div>
+                            <span class="knob-value">5.0 Hz</span>
+                        </div>
+                    </div>
+                    <div class="control-row">
+                        <span class="control-label">Depth</span>
+                        <div class="knob-wrapper">
+                            <div class="knob" data-target="lfo" data-index="1" data-param="depth"
+                                 data-type="percent" data-value="0.2" data-sensitivity="0.005">
+                                <div class="knob-indicator"></div>
+                                <div class="knob-pointer"></div>
+                            </div>
+                            <span class="knob-value">20%</span>
+                        </div>
+                    </div>
+                    <div class="control-row">
+                        <div class="switch-wrapper">
+                            <span class="switch-label">Enable</span>
+                            <div class="switch" data-target="lfo" data-index="1" data-param="enable"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LFO 3 -->
+            <div class="lfo-module">
+                <div class="lfo-header">
+                    <span class="lfo-title">LFO 3</span>
+                    <div class="lfo-led"></div>
+                </div>
+                <div class="operator-controls">
+                    <div class="control-row">
+                        <span class="control-label">Waveform</span>
+                        <select class="waveform-select" data-target="lfo" data-index="2">
+                            <option value="sine" selected>Sine</option>
+                            <option value="square">Square</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="triangle">Triangle</option>
+                        </select>
+                    </div>
+                    <div class="control-row">
+                        <span class="control-label">Rate</span>
+                        <div class="knob-wrapper">
+                            <div class="knob" data-target="lfo" data-index="2" data-param="rate"
+                                 data-type="lfo-rate" data-value="0.25" data-sensitivity="0.005">
+                                <div class="knob-indicator"></div>
+                                <div class="knob-pointer"></div>
+                            </div>
+                            <span class="knob-value">5.0 Hz</span>
+                        </div>
+                    </div>
+                    <div class="control-row">
+                        <span class="control-label">Depth</span>
+                        <div class="knob-wrapper">
+                            <div class="knob" data-target="lfo" data-index="2" data-param="depth"
+                                 data-type="percent" data-value="0.2" data-sensitivity="0.005">
+                                <div class="knob-indicator"></div>
+                                <div class="knob-pointer"></div>
+                            </div>
+                            <span class="knob-value">20%</span>
+                        </div>
+                    </div>
+                    <div class="control-row">
+                        <div class="switch-wrapper">
+                            <span class="switch-label">Enable</span>
+                            <div class="switch" data-target="lfo" data-index="2" data-param="enable"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LFO 4 -->
+            <div class="lfo-module">
+                <div class="lfo-header">
+                    <span class="lfo-title">LFO 4</span>
+                    <div class="lfo-led"></div>
+                </div>
+                <div class="operator-controls">
+                    <div class="control-row">
+                        <span class="control-label">Waveform</span>
+                        <select class="waveform-select" data-target="lfo" data-index="3">
+                            <option value="sine" selected>Sine</option>
+                            <option value="square">Square</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="triangle">Triangle</option>
+                        </select>
+                    </div>
+                    <div class="control-row">
+                        <span class="control-label">Rate</span>
+                        <div class="knob-wrapper">
+                            <div class="knob" data-target="lfo" data-index="3" data-param="rate"
+                                 data-type="lfo-rate" data-value="0.25" data-sensitivity="0.005">
+                                <div class="knob-indicator"></div>
+                                <div class="knob-pointer"></div>
+                            </div>
+                            <span class="knob-value">5.0 Hz</span>
+                        </div>
+                    </div>
+                    <div class="control-row">
+                        <span class="control-label">Depth</span>
+                        <div class="knob-wrapper">
+                            <div class="knob" data-target="lfo" data-index="3" data-param="depth"
+                                 data-type="percent" data-value="0.2" data-sensitivity="0.005">
+                                <div class="knob-indicator"></div>
+                                <div class="knob-pointer"></div>
+                            </div>
+                            <span class="knob-value">20%</span>
+                        </div>
+                    </div>
+                    <div class="control-row">
+                        <div class="switch-wrapper">
+                            <span class="switch-label">Enable</span>
+                            <div class="switch" data-target="lfo" data-index="3" data-param="enable"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Virtual Keyboard -->
+        <section class="keyboard-section">
+            <h2 class="section-title">Virtual Keyboard</h2>
+            <div class="piano-keyboard">
+                <!-- Octave 3 -->
+                <div class="piano-key" data-note="C3" data-midi="48"><span class="note-label">C</span></div>
+                <div class="piano-key black" data-note="C#3" data-midi="49" style="left: 28px;"><span class="note-label">C#</span></div>
+                <div class="piano-key" data-note="D3" data-midi="50"><span class="note-label">D</span></div>
+                <div class="piano-key black" data-note="D#3" data-midi="51" style="left: 68px;"><span class="note-label">D#</span></div>
+                <div class="piano-key" data-note="E3" data-midi="52"><span class="note-label">E</span></div>
+                <div class="piano-key" data-note="F3" data-midi="53"><span class="note-label">F</span></div>
+                <div class="piano-key black" data-note="F#3" data-midi="54" style="left: 148px;"><span class="note-label">F#</span></div>
+                <div class="piano-key" data-note="G3" data-midi="55"><span class="note-label">G</span></div>
+                <div class="piano-key black" data-note="G#3" data-midi="56" style="left: 188px;"><span class="note-label">G#</span></div>
+                <div class="piano-key" data-note="A3" data-midi="57"><span class="note-label">A</span></div>
+                <div class="piano-key black" data-note="A#3" data-midi="58" style="left: 228px;"><span class="note-label">A#</span></div>
+                <div class="piano-key" data-note="B3" data-midi="59"><span class="note-label">B</span></div>
+
+                <!-- Octave 4 -->
+                <div class="piano-key" data-note="C4" data-midi="60"><span class="note-label">C</span></div>
+                <div class="piano-key black" data-note="C#4" data-midi="61" style="left: 308px;"><span class="note-label">C#</span></div>
+                <div class="piano-key" data-note="D4" data-midi="62"><span class="note-label">D</span></div>
+                <div class="piano-key black" data-note="D#4" data-midi="63" style="left: 348px;"><span class="note-label">D#</span></div>
+                <div class="piano-key" data-note="E4" data-midi="64"><span class="note-label">E</span></div>
+                <div class="piano-key" data-note="F4" data-midi="65"><span class="note-label">F</span></div>
+                <div class="piano-key black" data-note="F#4" data-midi="66" style="left: 428px;"><span class="note-label">F#</span></div>
+                <div class="piano-key" data-note="G4" data-midi="67"><span class="note-label">G</span></div>
+                <div class="piano-key black" data-note="G#4" data-midi="68" style="left: 468px;"><span class="note-label">G#</span></div>
+                <div class="piano-key" data-note="A4" data-midi="69"><span class="note-label">A</span></div>
+                <div class="piano-key black" data-note="A#4" data-midi="70" style="left: 508px;"><span class="note-label">A#</span></div>
+                <div class="piano-key" data-note="B4" data-midi="71"><span class="note-label">B</span></div>
+
+                <!-- Octave 5 -->
+                <div class="piano-key" data-note="C5" data-midi="72"><span class="note-label">C</span></div>
+                <div class="piano-key black" data-note="C#5" data-midi="73" style="left: 588px;"><span class="note-label">C#</span></div>
+                <div class="piano-key" data-note="D5" data-midi="74"><span class="note-label">D</span></div>
+                <div class="piano-key black" data-note="D#5" data-midi="75" style="left: 628px;"><span class="note-label">D#</span></div>
+                <div class="piano-key" data-note="E5" data-midi="76"><span class="note-label">E</span></div>
+            </div>
+
+            <!-- Keyboard Hints -->
+            <div class="keyboard-hint">
+                <div class="hint-item">
+                    <span class="hint-key">Z-M</span>
+                    <span>Lower Octave</span>
+                </div>
+                <div class="hint-item">
+                    <span class="hint-key">Q-U</span>
+                    <span>Upper Octave</span>
+                </div>
+                <div class="hint-item">
+                    <span class="hint-key">Click</span>
+                    <span>Virtual Keys</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Panic Button -->
+        <section class="mt-3">
+            <button class="panic-button">Panic - All Notes Off</button>
+        </section>
     </div>
 
+    <!-- Scripts -->
+    <script src="js/audio-engine.js"></script>
+    <script src="js/synth-core.js"></script>
+    <script src="js/modulation.js"></script>
+    <script src="js/ui-controller.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

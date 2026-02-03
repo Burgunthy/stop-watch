@@ -1,417 +1,623 @@
-// 앱 상태 관리
-const state = {
-    // 스톱워치 상태
-    stopwatch: {
-        isRunning: false,
-        startTime: 0,
-        elapsedTime: 0,
-        lapTimes: [],
-        animationId: null
-    },
-    // 타이머 상태
-    timer: {
-        isRunning: false,
-        isPaused: false,
-        totalDuration: 0,
-        remainingTime: 0,
-        endTime: 0,
-        animationId: null
-    },
-    // 현재 탭
-    currentTab: 'stopwatch',
-    // 테마
-    theme: localStorage.getItem('theme') || 'light'
-};
+/**
+ * FM Synthesizer Main Application
+ * Main initialization and coordination
+ */
 
-// DOM 요소 참조
-const elements = {
-    // 테마
-    themeToggle: document.getElementById('themeToggle'),
-    themeIcon: document.querySelector('.theme-icon'),
-    // 탭
-    tabBtns: document.querySelectorAll('.tab-btn'),
-    tabContents: document.querySelectorAll('.tab-content'),
-    // 스톱워치
-    swStart: document.getElementById('swStart'),
-    swLap: document.getElementById('swLap'),
-    swReset: document.getElementById('swReset'),
-    stopwatchTime: document.getElementById('stopwatchTime'),
-    lapList: document.getElementById('lapList'),
-    // 타이머
-    tmStart: document.getElementById('tmStart'),
-    tmPause: document.getElementById('tmPause'),
-    tmReset: document.getElementById('tmReset'),
-    timerHours: document.getElementById('timerHours'),
-    timerMinutes: document.getElementById('timerMinutes'),
-    timerSeconds: document.getElementById('timerSeconds'),
-    timerTime: document.getElementById('timerTime'),
-    timerSetup: document.getElementById('timerSetup'),
-    timerDisplay: document.getElementById('timerDisplay'),
-    progressBar: document.getElementById('progressBar'),
-    // 기록
-    recordsList: document.getElementById('recordsList'),
-    clearRecords: document.getElementById('clearRecords')
-};
+class FMSynthesizer {
+    constructor() {
+        this.audioContext = null;
+        this.masterGain = null;
+        this.operators = [];
+        this.envelopes = [];
+        this.lfos = [];
+        this.modulationMatrix = null;
+        this.lfoRouter = null;
+        this.uiController = null;
 
-// ============ 유틸리티 함수 ============
+        // Synth parameters
+        this.masterTuning = 440; // A4 frequency
+        this.masterVolume = 0.7;
+        this.glideTime = 0; // Portamento time
 
-// 시간 포맷팅 (시:분:초.밀리초)
-function formatTime(ms) {
-    const totalSeconds = Math.floor(ms / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    const milliseconds = Math.floor((ms % 1000) / 10);
+        // Active notes
+        this.activeVoices = new Map();
 
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(milliseconds).padStart(2, '0')}`;
-}
-
-// 타이머 시간 포맷팅 (시:분:초)
-function formatTimerTime(ms) {
-    const totalSeconds = Math.floor(Math.max(0, ms) / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-}
-
-// 기록 저장
-function saveRecord(type, data) {
-    const records = JSON.parse(localStorage.getItem('timeRecords') || '[]');
-    const record = {
-        id: Date.now(),
-        type,
-        date: new Date().toLocaleString('ko-KR'),
-        ...data
-    };
-    records.unshift(record);
-    localStorage.setItem('timeRecords', JSON.stringify(records.slice(0, 100))); // 최대 100개
-}
-
-// 기록 불러오기
-function loadRecords() {
-    return JSON.parse(localStorage.getItem('timeRecords') || '[]');
-}
-
-// ============ 테마 관리 ============
-
-function setTheme(theme) {
-    state.theme = theme;
-    document.documentElement.setAttribute('data-theme', theme);
-    elements.themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
-    localStorage.setItem('theme', theme);
-}
-
-function toggleTheme() {
-    setTheme(state.theme === 'light' ? 'dark' : 'light');
-}
-
-// ============ 탭 전환 ============
-
-function switchTab(tabName) {
-    state.currentTab = tabName;
-
-    elements.tabBtns.forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.tab === tabName);
-    });
-
-    elements.tabContents.forEach(content => {
-        content.classList.toggle('active', content.id === tabName);
-    });
-
-    if (tabName === 'records') {
-        renderRecords();
-    }
-}
-
-// ============ 스톱워치 기능 ============
-
-function updateStopwatch() {
-    const currentTime = Date.now();
-    state.stopwatch.elapsedTime = currentTime - state.stopwatch.startTime;
-
-    elements.stopwatchTime.textContent = formatTime(state.stopwatch.elapsedTime);
-
-    if (state.stopwatch.isRunning) {
-        state.stopwatch.animationId = requestAnimationFrame(updateStopwatch);
-    }
-}
-
-function startStopwatch() {
-    if (state.stopwatch.isRunning) {
-        // 일시정지
-        state.stopwatch.isRunning = false;
-        state.stopwatch.elapsedTime = Date.now() - state.stopwatch.startTime;
-        cancelAnimationFrame(state.stopwatch.animationId);
-        elements.swStart.textContent = '시작';
-        elements.swLap.disabled = true;
-    } else {
-        // 시작
-        state.stopwatch.isRunning = true;
-        state.stopwatch.startTime = Date.now() - state.stopwatch.elapsedTime;
-        elements.swStart.textContent = '일시정지';
-        elements.swLap.disabled = false;
-        updateStopwatch();
-    }
-}
-
-function resetStopwatch() {
-    if (state.stopwatch.elapsedTime > 0) {
-        // 기록 저장
-        saveRecord('stopwatch', {
-            totalTime: formatTime(state.stopwatch.elapsedTime),
-            laps: state.stopwatch.lapTimes.map(lap => ({
-                number: lap.number,
-                time: formatTime(lap.total),
-                split: formatTime(lap.split)
-            }))
-        });
+        // Initialization state
+        this.isInitialized = false;
     }
 
-    state.stopwatch.isRunning = false;
-    state.stopwatch.startTime = 0;
-    state.stopwatch.elapsedTime = 0;
-    state.stopwatch.lapTimes = [];
-    cancelAnimationFrame(state.stopwatch.animationId);
+    /**
+     * Initialize the synthesizer
+     */
+    async init() {
+        if (this.isInitialized) return;
 
-    elements.stopwatchTime.textContent = '00:00:00.00';
-    elements.swStart.textContent = '시작';
-    elements.swLap.disabled = true;
-    renderLapTimes();
-}
+        try {
+            // Initialize audio context
+            await this.initAudio();
 
-function recordLap() {
-    const currentTotal = Date.now() - state.stopwatch.startTime;
-    const prevTotal = state.stopwatch.lapTimes.length > 0
-        ? state.stopwatch.lapTimes[state.stopwatch.lapTimes.length - 1].total
-        : 0;
+            // Create operators
+            this.initOperators();
 
-    const lap = {
-        number: state.stopwatch.lapTimes.length + 1,
-        total: currentTotal,
-        split: currentTotal - prevTotal
-    };
+            // Create envelopes
+            this.initEnvelopes();
 
-    state.stopwatch.lapTimes.push(lap);
-    renderLapTimes();
-}
+            // Create LFOs
+            this.initLFOs();
 
-function renderLapTimes() {
-    if (state.stopwatch.lapTimes.length === 0) {
-        elements.lapList.innerHTML = '<p class="empty-message">랩타임이 없습니다</p>';
-        return;
+            // Create modulation matrix
+            this.initModulationMatrix();
+
+            // Create LFO router
+            this.initLFORouter();
+
+            // Initialize UI
+            this.uiController = new UIController(this);
+            this.uiController.init();
+
+            this.isInitialized = true;
+            console.log('FM Synthesizer initialized');
+
+        } catch (error) {
+            console.error('Failed to initialize FM Synthesizer:', error);
+            throw error;
+        }
     }
 
-    elements.lapList.innerHTML = state.stopwatch.lapTimes
-        .slice()
-        .reverse()
-        .map(lap => `
-            <div class="lap-item">
-                <span class="lap-number">#${lap.number}</span>
-                <span class="lap-split">+${formatTime(lap.split)}</span>
-                <span class="lap-total">${formatTime(lap.total)}</span>
-            </div>
-        `).join('');
-}
+    /**
+     * Initialize audio context and master chain
+     */
+    async initAudio() {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        this.audioContext = new AudioContextClass();
 
-// ============ 타이머 기능 ============
+        // Master gain
+        this.masterGain = this.audioContext.createGain();
+        this.masterGain.gain.value = this.masterVolume;
 
-function updateTimer() {
-    const now = Date.now();
-    const remaining = Math.max(0, state.timer.endTime - now);
-    state.timer.remainingTime = remaining;
+        // Limiter to prevent clipping
+        const limiter = this.audioContext.createDynamicsCompressor();
+        limiter.threshold.value = -6;
+        limiter.ratio.value = 12;
 
-    elements.timerTime.textContent = formatTimerTime(remaining);
+        // Connect master chain
+        this.masterGain.connect(limiter);
+        limiter.connect(this.audioContext.destination);
 
-    // 프로그레스 바 업데이트
-    const progress = (remaining / state.timer.totalDuration) * 100;
-    elements.progressBar.style.setProperty('--progress', `${progress}%`);
-    elements.progressBar.style.transform = `scaleX(${progress / 100})`;
-
-    if (remaining > 0 && state.timer.isRunning) {
-        state.timer.animationId = requestAnimationFrame(updateTimer);
-    } else if (remaining <= 0) {
-        timerComplete();
-    }
-}
-
-function timerComplete() {
-    state.timer.isRunning = false;
-    cancelAnimationFrame(state.timer.animationId);
-
-    // 시각적 알림
-    document.body.classList.add('timer-complete');
-    setTimeout(() => document.body.classList.remove('timer-complete'), 1500);
-
-    // 기록 저장
-    saveRecord('timer', {
-        duration: formatTimerTime(state.timer.totalDuration),
-        completedAt: new Date().toLocaleString('ko-KR')
-    });
-
-    // 버튼 상태 업데이트
-    elements.tmStart.textContent = '시작';
-    elements.tmPause.disabled = true;
-    elements.tmStart.disabled = false;
-
-    // 설정 화면 표시
-    elements.timerSetup.style.display = 'block';
-}
-
-function startTimer() {
-    if (state.timer.isRunning) return;
-
-    if (!state.timer.isPaused) {
-        // 새로운 타이머 시작
-        const hours = parseInt(elements.timerHours.value) || 0;
-        const minutes = parseInt(elements.timerMinutes.value) || 0;
-        const seconds = parseInt(elements.timerSeconds.value) || 0;
-
-        state.timer.totalDuration = (hours * 3600 + minutes * 60 + seconds) * 1000;
-
-        if (state.timer.totalDuration === 0) return;
-
-        elements.timerSetup.style.display = 'none';
+        // Resume if suspended
+        if (this.audioContext.state === 'suspended') {
+            await this.audioContext.resume();
+        }
     }
 
-    state.timer.isRunning = true;
-    state.timer.isPaused = false;
-    state.timer.endTime = Date.now() + state.timer.remainingTime;
+    /**
+     * Initialize 4 operators
+     */
+    initOperators() {
+        for (let i = 0; i < 4; i++) {
+            const op = new Operator(i, this.audioContext);
+            op.createNodes();
 
-    elements.tmStart.disabled = true;
-    elements.tmPause.disabled = false;
+            // Default values
+            op.setWaveform('sine');
+            op.setFrequencyRatio(1.0 + i * 0.5);
+            op.setLevel(i === 3 ? 0.7 : 0); // Only OP4 outputs by default
+            op.setModulationIndex(0);
 
-    updateTimer();
-}
+            // Assign envelope
+            const envIndex = i % 4;
+            op.setEnvelope(this.envelopes[envIndex]);
 
-function pauseTimer() {
-    if (!state.timer.isRunning) return;
-
-    state.timer.isRunning = false;
-    state.timer.isPaused = true;
-    state.timer.remainingTime = state.timer.endTime - Date.now();
-
-    cancelAnimationFrame(state.timer.animationId);
-
-    elements.tmStart.disabled = false;
-    elements.tmStart.textContent = '재개';
-    elements.tmPause.disabled = true;
-}
-
-function resetTimer() {
-    state.timer.isRunning = false;
-    state.timer.isPaused = false;
-    state.timer.remainingTime = 0;
-    state.timer.totalDuration = 0;
-
-    cancelAnimationFrame(state.timer.animationId);
-
-    const hours = parseInt(elements.timerHours.value) || 0;
-    const minutes = parseInt(elements.timerMinutes.value) || 0;
-    const seconds = parseInt(elements.timerSeconds.value) || 0;
-
-    elements.timerTime.textContent = formatTimerTime((hours * 3600 + minutes * 60 + seconds) * 1000);
-    elements.progressBar.style.transform = 'scaleX(1)';
-
-    elements.tmStart.textContent = '시작';
-    elements.tmStart.disabled = false;
-    elements.tmPause.disabled = true;
-    elements.timerSetup.style.display = 'block';
-}
-
-// 타이머 입력 변경 시 표시 업데이트
-function updateTimerDisplay() {
-    const hours = parseInt(elements.timerHours.value) || 0;
-    const minutes = parseInt(elements.timerMinutes.value) || 0;
-    const seconds = parseInt(elements.timerSeconds.value) || 0;
-
-    if (!state.timer.isRunning && !state.timer.isPaused) {
-        elements.timerTime.textContent = formatTimerTime((hours * 3600 + minutes * 60 + seconds) * 1000);
-    }
-}
-
-// ============ 기록 관리 ============
-
-function renderRecords() {
-    const records = loadRecords();
-
-    if (records.length === 0) {
-        elements.recordsList.innerHTML = '<p class="empty-message">저장된 기록이 없습니다</p>';
-        return;
-    }
-
-    elements.recordsList.innerHTML = records.map(record => {
-        let content = `
-            <div class="record-item">
-                <div class="record-header">
-                    <span class="record-type">${record.type === 'stopwatch' ? '⏱️ 스톱워치' : '⏳ 타이머'}</span>
-                    <span class="record-date">${record.date}</span>
-                </div>
-                <div class="record-time">${record.totalTime || record.duration}</div>
-        `;
-
-        if (record.laps && record.laps.length > 0) {
-            content += `<div class="record-laps">
-                ${record.laps.map(lap => `
-                    <div class="record-lap">
-                        <span>#${lap.number}</span>
-                        <span>${lap.time}</span>
-                    </div>
-                `).join('')}
-            </div>`;
+            this.operators.push(op);
         }
 
-        content += '</div>';
-        return content;
-    }).join('');
-}
+        // Connect operators to master (OP4 by default for simple FM)
+        this.operators[3].connect(this.masterGain);
+    }
 
-function clearRecords() {
-    if (confirm('모든 기록을 삭제하시겠습니까?')) {
-        localStorage.removeItem('timeRecords');
-        renderRecords();
+    /**
+     * Initialize 4 ADSR envelopes
+     */
+    initEnvelopes() {
+        for (let i = 0; i < 4; i++) {
+            const env = new ADSREnvelope(i, this.audioContext);
+
+            // Default ADSR values
+            env.setAttack(0.01);
+            env.setDecay(0.3);
+            env.setSustain(0.5);
+            env.setRelease(0.3);
+
+            this.envelopes.push(env);
+        }
+    }
+
+    /**
+     * Initialize 4 LFOs
+     */
+    initLFOs() {
+        for (let i = 0; i < 4; i++) {
+            const lfo = new LFO(i, this.audioContext);
+            lfo.createNodes();
+
+            // Default values
+            lfo.setWaveform('sine');
+            lfo.setRate(5);
+            lfo.setDepth(0.2);
+
+            this.lfos.push(lfo);
+        }
+    }
+
+    /**
+     * Initialize modulation matrix
+     */
+    initModulationMatrix() {
+        this.modulationMatrix = new ModulationMatrix(this.audioContext);
+        this.modulationMatrix.setOperators(this.operators);
+        this.modulationMatrix.setMasterOutput(this.masterGain);
+
+        // Default modulation: simple 2-operator FM
+        // OP1 modulates OP2 at ratio, OP2 modulates OP3, OP3 outputs
+        this.modulationMatrix.setModulation(0, 1, 50); // OP1 -> OP2
+        this.modulationMatrix.setModulation(1, 2, 30); // OP2 -> OP3
+    }
+
+    /**
+     * Initialize LFO router
+     */
+    initLFORouter() {
+        this.lfoRouter = new LFOModulationRouter(this.audioContext);
+        this.lfoRouter.setLFOs(this.lfos);
+        this.lfoRouter.setOperators(this.operators);
+    }
+
+    /**
+     * Note on
+     * @param {number} midi - MIDI note number (0-127)
+     * @param {string} noteName - Note name (e.g., 'C4', 'A#3')
+     * @param {number} velocity - Note velocity (0.0-1.0)
+     */
+    noteOn(midi, noteName, velocity = 0.75) {
+        if (!this.isInitialized) return;
+
+        const frequency = this.midiToFrequency(midi);
+
+        // Stop any existing voice for this note if monophonic
+        if (this.activeVoices.has(midi)) {
+            this.noteOff(midi);
+        }
+
+        // Create voice
+        const voice = {
+            midi: midi,
+            frequency: frequency,
+            velocity: velocity,
+            operatorVoices: []
+        };
+
+        // Trigger all operators that have output enabled
+        this.operators.forEach(op => {
+            const voiceId = op.noteOn(frequency, velocity);
+            voice.operatorVoices.push(voiceId);
+        });
+
+        this.activeVoices.set(midi, voice);
+    }
+
+    /**
+     * Note off
+     * @param {number} midi - MIDI note number
+     */
+    noteOff(midi) {
+        if (!this.isInitialized) return;
+
+        const voice = this.activeVoices.get(midi);
+        if (!voice) return;
+
+        // Release all operators
+        this.operators.forEach((op, i) => {
+            if (voice.operatorVoices[i] !== undefined) {
+                op.noteOff(voice.operatorVoices[i]);
+            }
+        });
+
+        this.activeVoices.delete(midi);
+    }
+
+    /**
+     * All notes off (panic)
+     */
+    allNotesOff() {
+        this.activeVoices.forEach((voice, midi) => {
+            this.noteOff(midi);
+        });
+        this.activeVoices.clear();
+
+        // Also stop all operators
+        this.operators.forEach(op => op.allNotesOff());
+    }
+
+    /**
+     * Convert MIDI note number to frequency
+     */
+    midiToFrequency(midi) {
+        // A4 = MIDI 69 = 440Hz (default)
+        // Apply master tuning
+        const a4Freq = this.masterTuning;
+        return a4Freq * Math.pow(2, (midi - 69) / 12);
+    }
+
+    /**
+     * Set operator parameter
+     */
+    updateOperatorParam(opIndex, param, value) {
+        const op = this.operators[opIndex];
+        if (!op) return;
+
+        switch (param) {
+            case 'frequency':
+                // Logarithmic scale from 0.5Hz to 16kHz
+                const minFreq = Math.log10(0.5);
+                const maxFreq = Math.log10(16000);
+                const frequency = Math.pow(10, minFreq + (maxFreq - minFreq) * value);
+                op.setFrequency(frequency);
+                break;
+
+            case 'ratio':
+                op.setFrequencyRatio(value * 16);
+                break;
+
+            case 'level':
+                op.setLevel(value);
+                break;
+
+            case 'mod-index':
+                op.setModulationIndex(value * 100);
+                break;
+
+            case 'pan':
+                op.setPan((value - 0.5) * 2);
+                break;
+        }
+    }
+
+    /**
+     * Set operator waveform
+     */
+    setOperatorWaveform(opIndex, waveform) {
+        const op = this.operators[opIndex];
+        if (op) {
+            op.setWaveform(waveform);
+        }
+    }
+
+    /**
+     * Set operator phase invert
+     */
+    setOperatorPhaseInvert(opIndex, invert) {
+        const op = this.operators[opIndex];
+        if (op) {
+            op.setPhaseInvert(invert);
+        }
+    }
+
+    /**
+     * Set operator master output
+     */
+    setOperatorMasterOut(opIndex, enabled) {
+        this.modulationMatrix.setMasterOutput(opIndex, enabled);
+    }
+
+    /**
+     * Set modulation between operators
+     */
+    setModulation(sourceIndex, targetIndex, depth) {
+        this.modulationMatrix.setModulation(sourceIndex, targetIndex, depth);
+    }
+
+    /**
+     * Update ADSR parameter
+     */
+    updateADSRParam(envIndex, param, value) {
+        const env = this.envelopes[envIndex];
+        if (!env) return;
+
+        switch (param) {
+            case 'attack':
+                // Logarithmic scale from 1ms to 10s
+                const minAtk = Math.log10(0.001);
+                const maxAtk = Math.log10(10);
+                env.setAttack(Math.pow(10, minAtk + (maxAtk - minAtk) * value));
+                break;
+
+            case 'decay':
+                const minDec = Math.log10(0.001);
+                const maxDec = Math.log10(10);
+                env.setDecay(Math.pow(10, minDec + (maxDec - minDec) * value));
+                break;
+
+            case 'sustain':
+                env.setSustain(value);
+                break;
+
+            case 'release':
+                const minRel = Math.log10(0.001);
+                const maxRel = Math.log10(10);
+                env.setRelease(Math.pow(10, minRel + (maxRel - minRel) * value));
+                break;
+        }
+    }
+
+    /**
+     * Assign envelope to operator
+     */
+    assignEnvelopeToOperator(opIndex, envIndex) {
+        const op = this.operators[opIndex];
+        const env = this.envelopes[envIndex];
+        if (op && env) {
+            op.setEnvelope(env);
+        }
+    }
+
+    /**
+     * Update LFO parameter
+     */
+    updateLFOParam(lfoIndex, param, value) {
+        const lfo = this.lfos[lfoIndex];
+        if (!lfo) return;
+
+        switch (param) {
+            case 'rate':
+                lfo.setRate(0.1 + value * 19.9);
+                break;
+
+            case 'depth':
+                lfo.setDepth(value, 100);
+                break;
+
+            case 'pan':
+                lfo.setPan((value - 0.5) * 2);
+                break;
+        }
+    }
+
+    /**
+     * Set LFO waveform
+     */
+    setLFOWaveform(lfoIndex, waveform) {
+        const lfo = this.lfos[lfoIndex];
+        if (lfo) {
+            lfo.setWaveform(waveform);
+        }
+    }
+
+    /**
+     * Start LFO
+     */
+    startLFO(lfoIndex) {
+        const lfo = this.lfos[lfoIndex];
+        if (lfo) {
+            lfo.start();
+        }
+    }
+
+    /**
+     * Stop LFO
+     */
+    stopLFO(lfoIndex) {
+        const lfo = this.lfos[lfoIndex];
+        if (lfo) {
+            lfo.stop();
+        }
+    }
+
+    /**
+     * Set LFO target
+     */
+    setLFOTarget(lfoIndex, target) {
+        // target format: "op1-freq", "op2-level", etc.
+        const match = target.match(/op(\d+)-(freq|level)/);
+        if (match) {
+            const opIndex = parseInt(match[1]) - 1;
+            const param = match[2] === 'freq' ? 'frequency' : 'level';
+            const lfo = this.lfos[lfoIndex];
+            const op = this.operators[opIndex];
+
+            if (lfo && op) {
+                // Clear existing connections for this LFO
+                for (let i = 0; i < 4; i++) {
+                    this.lfoRouter.disconnect(lfoIndex, i, 'frequency');
+                    this.lfoRouter.disconnect(lfoIndex, i, 'level');
+                }
+
+                // Create new connection
+                if (param === 'frequency') {
+                    lfo.connect(op.getFrequencyParam());
+                } else {
+                    lfo.connect(op.outputGain.gain);
+                }
+            }
+        }
+    }
+
+    /**
+     * Update master parameter
+     */
+    updateMasterParam(param, value) {
+        switch (param) {
+            case 'volume':
+                this.masterVolume = value;
+                if (this.masterGain) {
+                    this.masterGain.gain.setTargetAtTime(value, this.audioContext.currentTime, 0.01);
+                }
+                break;
+
+            case 'tuning':
+                // value 0-1 maps to 415-466 Hz (A4)
+                this.masterTuning = 415 + value * 51;
+                break;
+
+            case 'glide':
+                // Portamento time 0-1 maps to 0-500ms
+                this.glideTime = value * 0.5;
+                break;
+        }
+    }
+
+    /**
+     * Set master tuning (cents from 440Hz)
+     */
+    setMasterTuning(cents) {
+        this.masterTuning = 440 * Math.pow(2, cents / 1200);
+    }
+
+    /**
+     * Load preset
+     */
+    loadPreset(presetName) {
+        this.modulationMatrix.loadPreset(presetName);
+    }
+
+    /**
+     * Get synth state for saving
+     */
+    getState() {
+        return {
+            masterVolume: this.masterVolume,
+            masterTuning: this.masterTuning,
+            glideTime: this.glideTime,
+            operators: this.operators.map(op => ({
+                waveform: op.waveform,
+                frequencyRatio: op.frequencyRatio,
+                level: op.level,
+                modulationIndex: op.modulationIndex,
+                phaseInvert: op.phaseInvert
+            })),
+            envelopes: this.envelopes.map(env => env.getState()),
+            lfos: this.lfos.map(lfo => lfo.getState()),
+            matrix: this.modulationMatrix.getMatrix()
+        };
+    }
+
+    /**
+     * Set synth state
+     */
+    setState(state) {
+        if (state.masterVolume !== undefined) {
+            this.updateMasterParam('volume', state.masterVolume);
+        }
+        if (state.masterTuning !== undefined) {
+            this.masterTuning = state.masterTuning;
+        }
+        if (state.glideTime !== undefined) {
+            this.glideTime = state.glideTime;
+        }
+        if (state.operators) {
+            state.operators.forEach((opState, i) => {
+                const op = this.operators[i];
+                if (op) {
+                    op.setWaveform(opState.waveform);
+                    op.setFrequencyRatio(opState.frequencyRatio);
+                    op.setLevel(opState.level);
+                    op.setModulationIndex(opState.modulationIndex);
+                    op.setPhaseInvert(opState.phaseInvert);
+                }
+            });
+        }
+        if (state.envelopes) {
+            state.envelopes.forEach((envState, i) => {
+                const env = this.envelopes[i];
+                if (env) {
+                    env.setState(envState);
+                }
+            });
+        }
+        if (state.lfos) {
+            state.lfos.forEach((lfoState, i) => {
+                const lfo = this.lfos[i];
+                if (lfo) {
+                    lfo.setState(lfoState);
+                }
+            });
+        }
+        if (state.matrix) {
+            this.modulationMatrix.setMatrix(state.matrix);
+        }
+    }
+
+    /**
+     * Clean up resources
+     */
+    dispose() {
+        this.allNotesOff();
+
+        this.operators.forEach(op => op.dispose());
+        this.lfos.forEach(lfo => lfo.dispose());
+        this.modulationMatrix.dispose();
+        this.lfoRouter.dispose();
+
+        if (this.masterGain) {
+            this.masterGain.disconnect();
+        }
     }
 }
 
-// ============ 이벤트 리스너 등록 ============
+// ============================================
+// APP INITIALIZATION
+// ============================================
 
-function init() {
-    // 테마 초기화
-    setTheme(state.theme);
-    elements.themeToggle.addEventListener('click', toggleTheme);
+let synth = null;
 
-    // 탭 전환
-    elements.tabBtns.forEach(btn => {
-        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
-    });
+// Initialize on user interaction
+async function initSynth() {
+    if (synth) return;
 
-    // 스톱워치 이벤트
-    elements.swStart.addEventListener('click', startStopwatch);
-    elements.swReset.addEventListener('click', resetStopwatch);
-    elements.swLap.addEventListener('click', recordLap);
+    try {
+        synth = new FMSynthesizer();
+        await synth.init();
 
-    // 타이머 이벤트
-    elements.tmStart.addEventListener('click', startTimer);
-    elements.tmPause.addEventListener('click', pauseTimer);
-    elements.tmReset.addEventListener('click', resetTimer);
+        // Update UI to reflect initial state
+        if (synth.uiController) {
+            synth.uiController.updateUI();
+        }
 
-    // 타이머 입력
-    [elements.timerHours, elements.timerMinutes, elements.timerSeconds].forEach(input => {
-        input.addEventListener('input', updateTimerDisplay);
-        input.addEventListener('change', updateTimerDisplay);
-    });
-
-    // 기록 관리
-    elements.clearRecords.addEventListener('click', clearRecords);
-
-    // 초기 타이머 표시
-    updateTimerDisplay();
-
-    // 진행 바 초기화
-    elements.progressBar.style.transformOrigin = 'left';
-    elements.progressBar.style.transition = 'transform 0.3s linear';
+        console.log('Synth ready! Click the keyboard or press keys Z/X/C/V...');
+    } catch (error) {
+        console.error('Failed to initialize synth:', error);
+    }
 }
 
-// 앱 초기화
-document.addEventListener('DOMContentLoaded', init);
+// Auto-initialize on page load with user interaction detection
+document.addEventListener('DOMContentLoaded', () => {
+    // Show "Click to start" overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'start-overlay';
+    overlay.innerHTML = `
+        <div class="start-message">
+            <h1>FM SYNTHESIZER</h1>
+            <p>Click anywhere to start</p>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    // Initialize on first interaction
+    const startHandler = async () => {
+        overlay.style.opacity = '0';
+        setTimeout(() => overlay.remove(), 500);
+
+        await initSynth();
+
+        document.removeEventListener('click', startHandler);
+        document.removeEventListener('touchstart', startHandler);
+        document.removeEventListener('keydown', startHandler);
+    };
+
+    document.addEventListener('click', startHandler);
+    document.addEventListener('touchstart', startHandler, { passive: true });
+    document.addEventListener('keydown', startHandler);
+});
+
+// Export for debugging
+window.synth = synth;
+window.FMSynthesizer = FMSynthesizer;
