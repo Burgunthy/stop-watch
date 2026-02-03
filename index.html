@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>스톱워치 & 타이머</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⏱️ 타임 트래커</h1>
+            <button class="theme-toggle" id="themeToggle" aria-label="테마 전환">
+                <span class="theme-icon">🌙</span>
+            </button>
+        </header>
+
+        <nav class="tab-nav">
+            <button class="tab-btn active" data-tab="stopwatch">스톱워치</button>
+            <button class="tab-btn" data-tab="timer">타이머</button>
+            <button class="tab-btn" data-tab="records">기록</button>
+        </nav>
+
+        <main>
+            <!-- 스톱워치 섹션 -->
+            <section class="tab-content active" id="stopwatch">
+                <div class="time-display">
+                    <span class="time" id="stopwatchTime">00:00:00.00</span>
+                </div>
+
+                <div class="controls">
+                    <button class="btn btn-start" id="swStart">시작</button>
+                    <button class="btn btn-lap" id="swLap" disabled>랩</button>
+                    <button class="btn btn-reset" id="swReset">리셋</button>
+                </div>
+
+                <div class="lap-times">
+                    <h3>랩타임</h3>
+                    <div class="lap-list" id="lapList">
+                        <p class="empty-message">랩타임이 없습니다</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 타이머 섹션 -->
+            <section class="tab-content" id="timer">
+                <div class="timer-setup" id="timerSetup">
+                    <div class="time-inputs">
+                        <div class="input-group">
+                            <input type="number" id="timerHours" min="0" max="99" value="0" placeholder="00">
+                            <span class="input-label">시</span>
+                        </div>
+                        <span class="separator">:</span>
+                        <div class="input-group">
+                            <input type="number" id="timerMinutes" min="0" max="59" value="5" placeholder="00">
+                            <span class="input-label">분</span>
+                        </div>
+                        <span class="separator">:</span>
+                        <div class="input-group">
+                            <input type="number" id="timerSeconds" min="0" max="59" value="0" placeholder="00">
+                            <span class="input-label">초</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="time-display timer-display" id="timerDisplay">
+                    <span class="time" id="timerTime">00:05:00</span>
+                </div>
+
+                <div class="controls">
+                    <button class="btn btn-start" id="tmStart">시작</button>
+                    <button class="btn btn-pause" id="tmPause" disabled>일시정지</button>
+                    <button class="btn btn-reset" id="tmReset">리셋</button>
+                </div>
+
+                <div class="timer-progress">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+            </section>
+
+            <!-- 기록 섹션 -->
+            <section class="tab-content" id="records">
+                <div class="records-header">
+                    <h2>저장된 기록</h2>
+                    <button class="btn btn-clear" id="clearRecords">전체 삭제</button>
+                </div>
+
+                <div class="records-list" id="recordsList">
+                    <p class="empty-message">저장된 기록이 없습니다</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
