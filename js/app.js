@@ -3,6 +3,11 @@
  * Main initialization and coordination
  */
 
+// Global error handler
+window.addEventListener('error', (e) => {
+    console.error('[FM Synth] Global error:', e.error);
+});
+
 class FMSynthesizer {
     constructor() {
         this.audioContext = null;
@@ -33,33 +38,45 @@ class FMSynthesizer {
         if (this.isInitialized) return;
 
         try {
-            // Initialize audio context
+            console.log('[FM Synth] Starting initialization...');
+
+            // Initialize audio context FIRST
             await this.initAudio();
 
-            // Create operators
-            this.initOperators();
-
-            // Create envelopes
+            // Create envelopes BEFORE operators (operators need envelopes)
             this.initEnvelopes();
+            console.log('[FM Synth] Envelopes created');
+
+            // Create operators after envelopes exist
+            this.initOperators();
+            console.log('[FM Synth] Operators created');
 
             // Create LFOs
             this.initLFOs();
+            console.log('[FM Synth] LFOs created');
 
             // Create modulation matrix
             this.initModulationMatrix();
+            console.log('[FM Synth] Modulation matrix initialized');
 
             // Create LFO router
             this.initLFORouter();
+            console.log('[FM Synth] LFO router initialized');
 
             // Initialize UI
             this.uiController = new UIController(this);
             this.uiController.init();
+            console.log('[FM Synth] UI initialized');
+
+            // Apply initial preset for sound
+            this.applyInitialPreset();
+            console.log('[FM Synth] Initial preset applied');
 
             this.isInitialized = true;
-            console.log('FM Synthesizer initialized');
+            console.log('[FM Synth] ✓ FM Synthesizer fully initialized! Ready to play.');
 
         } catch (error) {
-            console.error('Failed to initialize FM Synthesizer:', error);
+            console.error('[FM Synth] ✗ Failed to initialize:', error);
             throw error;
         }
     }
@@ -98,21 +115,21 @@ class FMSynthesizer {
             const op = new Operator(i, this.audioContext);
             op.createNodes();
 
-            // Default values
+            // Default values - all operators start silent
             op.setWaveform('sine');
-            op.setFrequencyRatio(1.0 + i * 0.5);
-            op.setLevel(i === 3 ? 0.7 : 0); // Only OP4 outputs by default
+            op.setFrequencyRatio(1.0);
+            op.setLevel(0);
             op.setModulationIndex(0);
 
-            // Assign envelope
-            const envIndex = i % 4;
-            op.setEnvelope(this.envelopes[envIndex]);
+            // Assign envelope (envelopes should already exist)
+            if (this.envelopes[i]) {
+                op.setEnvelope(this.envelopes[i]);
+            }
 
             this.operators.push(op);
         }
 
-        // Connect operators to master (OP4 by default for simple FM)
-        this.operators[3].connect(this.masterGain);
+        console.log('[FM Synth] Created 4 operators');
     }
 
     /**
@@ -473,6 +490,41 @@ class FMSynthesizer {
     }
 
     /**
+     * Apply initial preset for immediate sound output
+     */
+    applyInitialPreset() {
+        // Simple bell-like FM preset
+        // OP1 (modulator) -> OP2 (carrier) -> OUT
+
+        // OP1: Modulator
+        this.operators[0].setFrequencyRatio(2.0);
+        this.operators[0].setLevel(0);
+        this.operators[0].setModulationIndex(10);
+
+        // OP2: Carrier (outputs to master)
+        this.operators[1].setFrequencyRatio(1.0);
+        this.operators[1].setLevel(0.5);
+        this.operators[1].setModulationIndex(0);
+
+        // OP3, OP4: silent
+        this.operators[2].setLevel(0);
+        this.operators[3].setLevel(0);
+
+        // Set up modulation: OP1 modulates OP2
+        this.modulationMatrix.clearAll();
+        this.modulationMatrix.setModulation(0, 1, 50);
+        this.modulationMatrix.setMasterOutput(1, true); // OP2 to master
+
+        // Envelope settings for bell sound
+        this.envelopes[1].setAttack(0.001);
+        this.envelopes[1].setDecay(0.5);
+        this.envelopes[1].setSustain(0);
+        this.envelopes[1].setRelease(1.0);
+
+        console.log('[FM Synth] Applied initial bell preset');
+    }
+
+    /**
      * Load preset
      */
     loadPreset(presetName) {
@@ -601,12 +653,37 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
     document.body.appendChild(overlay);
 
+    // Set initial status
+    const statusIndicator = document.getElementById('statusIndicator');
+    if (statusIndicator) {
+        const statusText = statusIndicator.querySelector('.status-text');
+        if (statusText) statusText.textContent = 'Click to Start';
+    }
+
     // Initialize on first interaction
     const startHandler = async () => {
         overlay.style.opacity = '0';
         setTimeout(() => overlay.remove(), 500);
 
-        await initSynth();
+        try {
+            await initSynth();
+
+            // Update status to show active
+            if (statusIndicator) {
+                statusIndicator.classList.add('active');
+                const statusText = statusIndicator.querySelector('.status-text');
+                if (statusText) statusText.textContent = 'Active';
+            }
+        } catch (error) {
+            console.error('[FM Synth] Initialization failed:', error);
+
+            // Show error status
+            if (statusIndicator) {
+                statusIndicator.classList.add('error');
+                const statusText = statusIndicator.querySelector('.status-text');
+                if (statusText) statusText.textContent = 'Error';
+            }
+        }
 
         document.removeEventListener('click', startHandler);
         document.removeEventListener('touchstart', startHandler);

@@ -132,6 +132,47 @@ body {
     gap: 20px;
 }
 
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: var(--bg-module);
+    border-radius: 4px;
+    border: 1px solid var(--border-light);
+}
+
+.status-led {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--led-off);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.status-indicator.active .status-led {
+    background: var(--led-green);
+    box-shadow: 0 0 8px var(--led-green);
+}
+
+.status-indicator.error .status-led {
+    background: var(--led-red);
+    box-shadow: 0 0 8px var(--led-red);
+    animation: pulse-error 0.5s infinite;
+}
+
+@keyframes pulse-error {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+.status-text {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
 .master-volume-wrapper {
     display: flex;
     align-items: center;
@@ -391,10 +432,10 @@ body {
     width: 2px;
     height: 8px;
     background: var(--led-orange);
-    transform-origin: center 20px;
-    transform: translateX(-50%) rotate(var(--rotation, -135deg));
+    transform: translateX(-50%) rotate(var(--pointer-rotation, -135deg));
     border-radius: 1px;
     box-shadow: 0 0 4px var(--led-orange);
+    pointer-events: none;
 }
 
 .knob-value {
@@ -583,7 +624,8 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 5px;
+    cursor: ns-resize;
 }
 
 .fader-track {
@@ -600,12 +642,12 @@ body {
     left: 50%;
     width: 20px;
     height: 10px;
-    background: linear-gradient(180deg, #444, #333);
+    background: linear-gradient(180deg, #555, #333);
     border: 1px solid var(--border-light);
     border-radius: 2px;
     transform: translateX(-50%);
-    cursor: ns-resize;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    transition: border-color 0.2s ease;
 }
 
 .fader-thumb:hover {
@@ -631,6 +673,15 @@ body {
     background: linear-gradient(180deg, var(--led-orange), transparent);
     border-radius: 4px;
     opacity: 0.3;
+    pointer-events: none;
+}
+
+.fader-value {
+    font-size: 0.55rem;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    min-width: 40px;
+    text-align: center;
 }
 
 /* ============================================

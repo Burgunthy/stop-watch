@@ -30,6 +30,37 @@ class UIController {
         this.initADSRControls();
         this.initLFOControls();
         this.initMasterControls();
+
+        // Initialize knob visual values after a small delay
+        setTimeout(() => {
+            this.initKnobValues();
+            this.initFaderValues();
+        }, 100);
+    }
+
+    /**
+     * Initialize all knob visual values
+     */
+    initKnobValues() {
+        const knobs = document.querySelectorAll('.knob');
+        knobs.forEach(knob => {
+            const value = parseFloat(knob.dataset.value) || 0;
+            this.setKnobValue(knob, value);
+        });
+    }
+
+    /**
+     * Initialize all fader visual values
+     */
+    initFaderValues() {
+        const faderWrappers = document.querySelectorAll('.fader-wrapper');
+        faderWrappers.forEach(wrapper => {
+            const thumb = wrapper.querySelector('.fader-thumb');
+            if (thumb) {
+                const value = parseFloat(thumb.dataset.value) || 0;
+                this.updateFaderValue(wrapper, value);
+            }
+        });
     }
 
     /**
@@ -162,11 +193,18 @@ class UIController {
 
         const indicator = knob.querySelector('.knob-indicator');
         if (indicator) {
+            indicator.style.setProperty('--rotation', `${rotation}deg`);
             indicator.style.transform = `rotate(${rotation}deg)`;
         }
 
+        const pointer = knob.querySelector('.knob-pointer');
+        if (pointer) {
+            pointer.style.setProperty('--pointer-rotation', `${rotation}deg`);
+            pointer.style.transform = `translateX(-50%) rotate(${rotation}deg)`;
+        }
+
         // Update value display
-        const valueDisplay = knob.querySelector('.knob-value');
+        const valueDisplay = knob.parentElement.querySelector('.knob-value');
         if (valueDisplay) {
             const displayValue = this.formatKnobValue(knob, value);
             valueDisplay.textContent = displayValue;
@@ -270,20 +308,141 @@ class UIController {
     }
 
     /**
-     * Initialize slider controls
+     * Initialize slider controls (ADSR faders)
      */
     initSliders() {
-        const sliders = document.querySelectorAll('.fader');
+        const faderWrappers = document.querySelectorAll('.fader-wrapper');
 
-        sliders.forEach(slider => {
-            slider.addEventListener('input', (e) => {
-                this.handleSliderChange(slider, parseFloat(e.target.value));
+        faderWrappers.forEach(wrapper => {
+            const track = wrapper.querySelector('.fader-track');
+            const thumb = track.querySelector('.fader-thumb');
+
+            if (!thumb) return;
+
+            // Mouse events
+            wrapper.addEventListener('mousedown', (e) => {
+                if (e.target === thumb || e.target === track) {
+                    e.preventDefault();
+                    this.startFaderDrag(e, wrapper, thumb);
+                }
             });
+
+            // Touch events
+            wrapper.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                this.startFaderDrag(touch, wrapper, thumb);
+            }, { passive: false });
         });
     }
 
     /**
-     * Handle slider value change
+     * Start fader dragging
+     */
+    startFaderDrag(startEvent, wrapper, thumb) {
+        const track = wrapper.querySelector('.fader-track');
+        const trackRect = track.getBoundingClientRect();
+        const envIndex = parseInt(wrapper.dataset.env);
+        const param = wrapper.dataset.param;
+
+        const updateFader = (clientY) => {
+            let value = (clientY - trackRect.top) / trackRect.height;
+            value = 1 - Math.max(0, Math.min(1, value)); // Invert (bottom = 0, top = 1)
+
+            this.updateFaderValue(wrapper, value);
+            this.updateADSRFromFader(envIndex, param, value);
+        };
+
+        // Initial value
+        updateFader(startEvent.clientY);
+
+        // Drag handlers
+        const onMove = (e) => {
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+            if (clientY !== undefined) {
+                updateFader(clientY);
+            }
+        };
+
+        const onEnd = () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onEnd);
+            document.removeEventListener('touchmove', onMove);
+            document.removeEventListener('touchend', onEnd);
+        };
+
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onEnd);
+        document.addEventListener('touchmove', onMove, { passive: false });
+        document.addEventListener('touchend', onEnd);
+    }
+
+    /**
+     * Update fader visual value
+     */
+    updateFaderValue(wrapper, value) {
+        const thumb = wrapper.querySelector('.fader-thumb');
+        const fill = wrapper.querySelector('.fader-fill');
+        const valueDisplay = wrapper.querySelector('.fader-value');
+
+        if (thumb) {
+            thumb.style.bottom = `${value * 100}%`;
+            thumb.dataset.value = value;
+        }
+
+        if (fill) {
+            fill.style.height = `${value * 100}%`;
+        }
+
+        if (valueDisplay) {
+            valueDisplay.textContent = this.formatFaderValue(wrapper, value);
+        }
+    }
+
+    /**
+     * Format fader value for display
+     */
+    formatFaderValue(wrapper, value) {
+        const param = wrapper.dataset.param;
+
+        if (param === 'sustain') {
+            return Math.round(value * 100) + '%';
+        }
+
+        // Logarithmic scale for time-based parameters
+        const minSec = Math.log10(0.001);
+        const maxSec = Math.log10(10);
+        const seconds = Math.pow(10, minSec + (maxSec - minSec) * value);
+
+        if (seconds < 0.01) {
+            return Math.round(seconds * 1000) + 'ms';
+        }
+        return (seconds * 1000).toFixed(0) + 'ms';
+    }
+
+    /**
+     * Convert normalized value to seconds
+     */
+    faderValueToSeconds(value) {
+        const minSec = Math.log10(0.001);
+        const maxSec = Math.log10(10);
+        return Math.pow(10, minSec + (maxSec - minSec) * value);
+    }
+
+    /**
+     * Update ADSR parameter from fader value
+     */
+    updateADSRFromFader(envIndex, param, value) {
+        if (param === 'sustain') {
+            this.synth.envelopes[envIndex].setSustain(value);
+        } else {
+            const seconds = this.faderValueToSeconds(value);
+            this.synth.envelopes[envIndex][`set${param.charAt(0).toUpperCase() + param.slice(1)}`](seconds);
+        }
+    }
+
+    /**
+     * Handle slider value change (legacy, for compatibility)
      */
     handleSliderChange(slider, value) {
         slider.dataset.value = value;

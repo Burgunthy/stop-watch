@@ -367,15 +367,13 @@ class ADSREnvelope {
      * @param {AudioParam} param - The audio parameter to control
      */
     release(param) {
-        if (!this.isActive) return;
-
         const now = this.audioContext.currentTime;
 
         // Cancel scheduled changes
         param.cancelScheduledValues(now);
 
-        // Get current value
-        const currentValue = param.value;
+        // Get current value (use currentValue if active, otherwise get from param)
+        const currentValue = this.isActive ? this.currentValue : param.value;
         param.setValueAtTime(currentValue, now);
 
         // Release to zero

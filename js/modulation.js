@@ -208,10 +208,16 @@ class ModulationMatrix {
      * Clear all modulations
      */
     clearAll() {
+        // Clear operator-to-operator connections
         for (let i = 0; i < 4; i++) {
             for (let j = 0; j < 4; j++) {
                 this.clearModulation(i, j);
             }
+        }
+
+        // Clear master outputs
+        for (let i = 0; i < 4; i++) {
+            this.setMasterOutput(i, false);
         }
     }
 
